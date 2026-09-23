@@ -14,7 +14,7 @@ Built with **Node.js/Express**, **Prisma ORM & SQLite**, **React + Vite + Tailwi
   - **Executive (`executive`):** Executive-level strategic visibility and status reporting.
   - **Employee (`employee`):** Dedicated personal To-Do portal, task status updater, and feedback viewer.
 - ✉️ **Secure Admin Password Recovery Flow:**
-  - 6-digit cryptographically random verification code sent via **SMTP (`info@jobs-group.org`)**.
+  - 6-digit cryptographically random verification code sent via **SMTP (`Your Enter Email`)**.
   - Rate limiting, 10-minute expiry, max 5 failed attempts protection, and single-use tokens.
   - Emergency 16-character backup recovery key fallback.
 - 📊 **Visual Analytics & Dashboard:** Real-time completion rates, interactive charts, and overdue tracking.
