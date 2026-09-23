@@ -12,14 +12,22 @@ import taskRoutes from './routes/tasks.js';
 import notificationRoutes from './routes/notifications.js';
 import { initNotificationCleanupJob } from './utils/notificationCleanup.js';
 
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 5000;
-
 // Resolve __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load .env from backend directory first, then fallback to root
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config();
+
+// Ensure DATABASE_URL fallback exists if not specified in environment
+if (!process.env.DATABASE_URL) {
+  const dbPath = path.resolve(__dirname, '../prisma/app.db');
+  process.env.DATABASE_URL = `file:${dbPath}`;
+}
+
+const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({

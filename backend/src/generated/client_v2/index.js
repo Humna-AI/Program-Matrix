@@ -210,6 +210,26 @@ const config = {
         "fromEnvVar": null,
         "value": "windows",
         "native": true
+      },
+      {
+        "fromEnvVar": null,
+        "value": "debian-openssl-1.1.x"
+      },
+      {
+        "fromEnvVar": null,
+        "value": "debian-openssl-3.0.x"
+      },
+      {
+        "fromEnvVar": null,
+        "value": "rhel-openssl-1.0.x"
+      },
+      {
+        "fromEnvVar": null,
+        "value": "rhel-openssl-3.0.x"
+      },
+      {
+        "fromEnvVar": null,
+        "value": "windows"
       }
     ],
     "previewFeatures": [],
@@ -217,7 +237,8 @@ const config = {
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null
+    "rootEnvPath": null,
+    "schemaEnvPath": "../../../.env"
   },
   "relativePath": "../../../prisma",
   "clientVersion": "5.22.0",
@@ -226,7 +247,7 @@ const config = {
     "db"
   ],
   "activeProvider": "sqlite",
-  "postinstall": true,
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
@@ -235,8 +256,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "datasource db {\n  provider = \"sqlite\"\n  url      = env(\"DATABASE_URL\")\n}\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../src/generated/client_v2\"\n}\n\nmodel User {\n  id               Int                  @id @default(autoincrement())\n  name             String\n  email            String               @unique\n  passwordHash     String\n  role             String // \"admin\", \"manager\", \"employee\", \"executive\"\n  projects         Project[]            @relation(\"CreatedProjects\")\n  assignedTasks    Task[]               @relation(\"AssignedTasks\")\n  createdTasks     Task[]               @relation(\"CreatedTasks\")\n  changedHistories TaskHistory[]        @relation(\"ChangedHistories\")\n  notifications    Notification[]       @relation(\"UserNotifications\")\n  passwordResets   AdminPasswordReset[] @relation(\"AdminPasswordResets\")\n  recoveryKeys     AdminRecoveryKey[]   @relation(\"AdminRecoveryKeys\")\n}\n\nmodel AdminPasswordReset {\n  id             Int      @id @default(autoincrement())\n  adminId        Int\n  admin          User     @relation(\"AdminPasswordResets\", fields: [adminId], references: [id], onDelete: Cascade)\n  codeHash       String // SHA-256 hash of 6-digit verification code\n  resetTokenHash String? // SHA-256 hash of temporary reset token issued after verification\n  expiresAt      DateTime\n  attempts       Int      @default(0) // Maximum 5 attempts allowed\n  isUsed         Boolean  @default(false)\n  createdAt      DateTime @default(now())\n}\n\nmodel AdminRecoveryKey {\n  id        Int      @id @default(autoincrement())\n  adminId   Int      @unique\n  admin     User     @relation(\"AdminRecoveryKeys\", fields: [adminId], references: [id], onDelete: Cascade)\n  keyHash   String // SHA-256 hash of 16-character backup recovery key\n  isUsed    Boolean  @default(false)\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n\nmodel SecurityAuditLog {\n  id        Int      @id @default(autoincrement())\n  userId    Int?\n  event     String // e.g. \"ADMIN_LOGIN_SUCCESS\", \"ADMIN_LOGIN_FAILED\", \"PASSWORD_RESET_REQUESTED\", \"VERIFICATION_CODE_SUCCESS\", \"VERIFICATION_CODE_FAILED\", \"PASSWORD_RESET_SUCCESS\", \"EMERGENCY_RECOVERY_USED\"\n  ipAddress String?\n  userAgent String?\n  details   String?\n  createdAt DateTime @default(now())\n}\n\nmodel Project {\n  id          Int      @id @default(autoincrement())\n  title       String\n  description String?\n  link        String?\n  createdById Int\n  createdBy   User     @relation(\"CreatedProjects\", fields: [createdById], references: [id], onDelete: Cascade)\n  tasks       Task[]\n  createdAt   DateTime @default(now())\n}\n\nmodel Task {\n  id           Int           @id @default(autoincrement())\n  projectId    Int\n  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)\n  title        String\n  description  String?\n  assignedToId Int\n  assignedTo   User          @relation(\"AssignedTasks\", fields: [assignedToId], references: [id], onDelete: Cascade)\n  assignedById Int\n  assignedBy   User          @relation(\"CreatedTasks\", fields: [assignedById], references: [id], onDelete: Cascade)\n  dueDate      DateTime\n  status       String // \"not_started\", \"in_progress\", \"completed\"\n  feedback     String? // Feedback given by manager/admin on completed task\n  createdAt    DateTime      @default(now())\n  histories    TaskHistory[]\n}\n\nmodel TaskHistory {\n  id          Int      @id @default(autoincrement())\n  taskId      Int\n  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)\n  changedById Int\n  changedBy   User     @relation(\"ChangedHistories\", fields: [changedById], references: [id], onDelete: Cascade)\n  oldValue    String\n  newValue    String\n  createdAt   DateTime @default(now())\n}\n\nmodel Notification {\n  id        Int      @id @default(autoincrement())\n  userId    Int\n  user      User     @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  title     String\n  message   String\n  type      String // \"task_assigned\", \"feedback_added\", \"task_completed\", \"project_completed\"\n  isRead    Boolean  @default(false)\n  createdAt DateTime @default(now())\n}\n",
-  "inlineSchemaHash": "38790705def95a4353484f01b10bb65b4c2c8dbd5a3d18b03931a09ecf9f59f8",
+  "inlineSchema": "datasource db {\n  provider = \"sqlite\"\n  url      = env(\"DATABASE_URL\")\n}\n\ngenerator client {\n  provider      = \"prisma-client-js\"\n  output        = \"../src/generated/client_v2\"\n  binaryTargets = [\"native\", \"debian-openssl-1.1.x\", \"debian-openssl-3.0.x\", \"rhel-openssl-1.0.x\", \"rhel-openssl-3.0.x\", \"windows\"]\n}\n\nmodel User {\n  id               Int                  @id @default(autoincrement())\n  name             String\n  email            String               @unique\n  passwordHash     String\n  role             String // \"admin\", \"manager\", \"employee\", \"executive\"\n  projects         Project[]            @relation(\"CreatedProjects\")\n  assignedTasks    Task[]               @relation(\"AssignedTasks\")\n  createdTasks     Task[]               @relation(\"CreatedTasks\")\n  changedHistories TaskHistory[]        @relation(\"ChangedHistories\")\n  notifications    Notification[]       @relation(\"UserNotifications\")\n  passwordResets   AdminPasswordReset[] @relation(\"AdminPasswordResets\")\n  recoveryKeys     AdminRecoveryKey[]   @relation(\"AdminRecoveryKeys\")\n}\n\nmodel AdminPasswordReset {\n  id             Int      @id @default(autoincrement())\n  adminId        Int\n  admin          User     @relation(\"AdminPasswordResets\", fields: [adminId], references: [id], onDelete: Cascade)\n  codeHash       String // SHA-256 hash of 6-digit verification code\n  resetTokenHash String? // SHA-256 hash of temporary reset token issued after verification\n  expiresAt      DateTime\n  attempts       Int      @default(0) // Maximum 5 attempts allowed\n  isUsed         Boolean  @default(false)\n  createdAt      DateTime @default(now())\n}\n\nmodel AdminRecoveryKey {\n  id        Int      @id @default(autoincrement())\n  adminId   Int      @unique\n  admin     User     @relation(\"AdminRecoveryKeys\", fields: [adminId], references: [id], onDelete: Cascade)\n  keyHash   String // SHA-256 hash of 16-character backup recovery key\n  isUsed    Boolean  @default(false)\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n\nmodel SecurityAuditLog {\n  id        Int      @id @default(autoincrement())\n  userId    Int?\n  event     String // e.g. \"ADMIN_LOGIN_SUCCESS\", \"ADMIN_LOGIN_FAILED\", \"PASSWORD_RESET_REQUESTED\", \"VERIFICATION_CODE_SUCCESS\", \"VERIFICATION_CODE_FAILED\", \"PASSWORD_RESET_SUCCESS\", \"EMERGENCY_RECOVERY_USED\"\n  ipAddress String?\n  userAgent String?\n  details   String?\n  createdAt DateTime @default(now())\n}\n\nmodel Project {\n  id          Int      @id @default(autoincrement())\n  title       String\n  description String?\n  link        String?\n  createdById Int\n  createdBy   User     @relation(\"CreatedProjects\", fields: [createdById], references: [id], onDelete: Cascade)\n  tasks       Task[]\n  createdAt   DateTime @default(now())\n}\n\nmodel Task {\n  id           Int           @id @default(autoincrement())\n  projectId    Int\n  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)\n  title        String\n  description  String?\n  assignedToId Int\n  assignedTo   User          @relation(\"AssignedTasks\", fields: [assignedToId], references: [id], onDelete: Cascade)\n  assignedById Int\n  assignedBy   User          @relation(\"CreatedTasks\", fields: [assignedById], references: [id], onDelete: Cascade)\n  dueDate      DateTime\n  status       String // \"not_started\", \"in_progress\", \"completed\"\n  feedback     String? // Feedback given by manager/admin on completed task\n  createdAt    DateTime      @default(now())\n  histories    TaskHistory[]\n}\n\nmodel TaskHistory {\n  id          Int      @id @default(autoincrement())\n  taskId      Int\n  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)\n  changedById Int\n  changedBy   User     @relation(\"ChangedHistories\", fields: [changedById], references: [id], onDelete: Cascade)\n  oldValue    String\n  newValue    String\n  createdAt   DateTime @default(now())\n}\n\nmodel Notification {\n  id        Int      @id @default(autoincrement())\n  userId    Int\n  user      User     @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  title     String\n  message   String\n  type      String // \"task_assigned\", \"feedback_added\", \"task_completed\", \"project_completed\"\n  isRead    Boolean  @default(false)\n  createdAt DateTime @default(now())\n}\n",
+  "inlineSchemaHash": "d17b71d3d8cfd5b78a6a603ef9443fa387122e1cd80aee774b16b64661af3752",
   "copyEngine": true
 }
 
@@ -245,8 +266,8 @@ const fs = require('fs')
 config.dirname = __dirname
 if (!fs.existsSync(path.join(__dirname, 'schema.prisma'))) {
   const alternativePaths = [
-    "backend/src/generated/client_v2",
     "src/generated/client_v2",
+    "generated/client_v2",
   ]
   
   const alternativePath = alternativePaths.find((altPath) => {
@@ -275,7 +296,23 @@ Object.assign(exports, Prisma)
 
 // file annotations for bundling tools to include these files
 path.join(__dirname, "query_engine-windows.dll.node");
-path.join(process.cwd(), "backend/src/generated/client_v2/query_engine-windows.dll.node")
+path.join(process.cwd(), "src/generated/client_v2/query_engine-windows.dll.node")
+
+// file annotations for bundling tools to include these files
+path.join(__dirname, "libquery_engine-debian-openssl-1.1.x.so.node");
+path.join(process.cwd(), "src/generated/client_v2/libquery_engine-debian-openssl-1.1.x.so.node")
+
+// file annotations for bundling tools to include these files
+path.join(__dirname, "libquery_engine-debian-openssl-3.0.x.so.node");
+path.join(process.cwd(), "src/generated/client_v2/libquery_engine-debian-openssl-3.0.x.so.node")
+
+// file annotations for bundling tools to include these files
+path.join(__dirname, "libquery_engine-rhel-openssl-1.0.x.so.node");
+path.join(process.cwd(), "src/generated/client_v2/libquery_engine-rhel-openssl-1.0.x.so.node")
+
+// file annotations for bundling tools to include these files
+path.join(__dirname, "libquery_engine-rhel-openssl-3.0.x.so.node");
+path.join(process.cwd(), "src/generated/client_v2/libquery_engine-rhel-openssl-3.0.x.so.node")
 // file annotations for bundling tools to include these files
 path.join(__dirname, "schema.prisma");
-path.join(process.cwd(), "backend/src/generated/client_v2/schema.prisma")
+path.join(process.cwd(), "src/generated/client_v2/schema.prisma")
