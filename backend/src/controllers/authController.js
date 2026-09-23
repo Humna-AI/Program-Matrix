@@ -54,14 +54,16 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({ where: { email: normalizedEmail } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
