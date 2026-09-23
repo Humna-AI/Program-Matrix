@@ -56,8 +56,16 @@ const buildEnv = {
 // Also write or ensure backend/.env has DATABASE_URL for Prisma sub-processes
 try {
   const backendEnvPath = path.join(__dirname, 'backend/.env');
-  if (!fs.existsSync(backendEnvPath)) {
-    fs.writeFileSync(backendEnvPath, `DATABASE_URL="${dbUrl}"\n`);
+  let content = '';
+  if (fs.existsSync(backendEnvPath)) {
+    content = fs.readFileSync(backendEnvPath, 'utf-8');
+  }
+  if (!content.includes('DATABASE_URL=')) {
+    content += `\nDATABASE_URL="${dbUrl}"\n`;
+    fs.writeFileSync(backendEnvPath, content);
+  } else {
+    content = content.replace(/^DATABASE_URL=.*/m, `DATABASE_URL="${dbUrl}"`);
+    fs.writeFileSync(backendEnvPath, content);
   }
 } catch (e) {
   // Continue if filesystem is read-only for new files
