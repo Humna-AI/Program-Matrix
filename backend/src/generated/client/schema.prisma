@@ -1,0 +1,57 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+model User {
+  id               Int           @id @default(autoincrement())
+  name             String
+  email            String        @unique
+  passwordHash     String
+  role             String // "admin", "manager", "employee"
+  projects         Project[]     @relation("CreatedProjects")
+  assignedTasks    Task[]        @relation("AssignedTasks")
+  createdTasks     Task[]        @relation("CreatedTasks")
+  changedHistories TaskHistory[] @relation("ChangedHistories")
+}
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+  createdById Int
+  createdBy   User    @relation("CreatedProjects", fields: [createdById], references: [id], onDelete: Cascade)
+  tasks       Task[]
+}
+
+model Task {
+  id           Int           @id @default(autoincrement())
+  projectId    Int
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  assignedToId Int
+  assignedTo   User          @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedById Int
+  assignedBy   User          @relation("CreatedTasks", fields: [assignedById], references: [id], onDelete: Cascade)
+  dueDate      DateTime
+  status       String // "not_started", "in_progress", "completed"
+  createdAt    DateTime      @default(now())
+  histories    TaskHistory[]
+}
+
+model TaskHistory {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedById Int
+  changedBy   User     @relation("ChangedHistories", fields: [changedById], references: [id], onDelete: Cascade)
+  oldValue    String
+  newValue    String
+  createdAt   DateTime @default(now())
+}

@@ -1,0 +1,107 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client_v2"
+}
+
+model User {
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  email               String               @unique
+  passwordHash        String
+  role                String               // "admin", "manager", "employee", "executive"
+  projects            Project[]            @relation("CreatedProjects")
+  assignedTasks       Task[]               @relation("AssignedTasks")
+  createdTasks        Task[]               @relation("CreatedTasks")
+  changedHistories    TaskHistory[]        @relation("ChangedHistories")
+  notifications       Notification[]       @relation("UserNotifications")
+  passwordResets      AdminPasswordReset[] @relation("AdminPasswordResets")
+  recoveryKeys        AdminRecoveryKey[]   @relation("AdminRecoveryKeys")
+}
+
+model AdminPasswordReset {
+  id             Int      @id @default(autoincrement())
+  adminId        Int
+  admin          User     @relation("AdminPasswordResets", fields: [adminId], references: [id], onDelete: Cascade)
+  codeHash       String   // SHA-256 hash of 6-digit verification code
+  resetTokenHash String?  // SHA-256 hash of temporary reset token issued after verification
+  expiresAt      DateTime
+  attempts       Int      @default(0) // Maximum 5 attempts allowed
+  isUsed         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model AdminRecoveryKey {
+  id        Int      @id @default(autoincrement())
+  adminId   Int      @unique
+  admin     User     @relation("AdminRecoveryKeys", fields: [adminId], references: [id], onDelete: Cascade)
+  keyHash   String   // SHA-256 hash of 16-character backup recovery key
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SecurityAuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  event     String   // e.g. "ADMIN_LOGIN_SUCCESS", "ADMIN_LOGIN_FAILED", "PASSWORD_RESET_REQUESTED", "VERIFICATION_CODE_SUCCESS", "VERIFICATION_CODE_FAILED", "PASSWORD_RESET_SUCCESS", "EMERGENCY_RECOVERY_USED"
+  ipAddress String?
+  userAgent String?
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  link        String?
+  createdById Int
+  createdBy   User     @relation("CreatedProjects", fields: [createdById], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+}
+
+model Task {
+  id           Int           @id @default(autoincrement())
+  projectId    Int
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  assignedToId Int
+  assignedTo   User          @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedById Int
+  assignedBy   User          @relation("CreatedTasks", fields: [assignedById], references: [id], onDelete: Cascade)
+  dueDate      DateTime
+  status       String        // "not_started", "in_progress", "completed"
+  feedback     String?       // Feedback given by manager/admin on completed task
+  createdAt    DateTime      @default(now())
+  histories    TaskHistory[]
+}
+
+model TaskHistory {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedById Int
+  changedBy   User     @relation("ChangedHistories", fields: [changedById], references: [id], onDelete: Cascade)
+  oldValue    String
+  newValue    String
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // "task_assigned", "feedback_added", "task_completed", "project_completed"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
