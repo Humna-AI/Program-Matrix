@@ -39,56 +39,49 @@ const initialProjects = [
 ];
 
 async function main() {
-  console.log('Clearing database tasks and projects...');
-  await prisma.notification.deleteMany({});
-  await prisma.taskHistory.deleteMany({});
-  await prisma.task.deleteMany({});
-  await prisma.project.deleteMany({});
-  await prisma.adminPasswordReset.deleteMany({});
-  await prisma.adminRecoveryKey.deleteMany({});
-  await prisma.user.deleteMany({});
-
-  console.log('Seeding primary Program Manager account...');
-
   // Admin credentials from environment with secure defaults
   const adminName = process.env.ADMIN_INITIAL_NAME || 'Shahrukh';
   const adminEmail = (process.env.ADMIN_INITIAL_EMAIL || 'Shahrukh@jobs-group.org').trim().toLowerCase();
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Shah_Rukh!2026K';
   const adminRecoveryKey = process.env.ADMIN_INITIAL_RECOVERY_KEY || 'ADM-2026-SHAHRUKH-ROOT';
 
-  // Admin Account (Only account created)
-  const admin = await prisma.user.create({
-    data: {
-      name: adminName,
-      email: adminEmail,
-      passwordHash: hashPassword(adminPassword),
-      role: 'admin',
-    },
-  });
+  const existingAdmin = await prisma.user.findFirst({ where: { role: 'admin' } });
 
-  // Seed Emergency Recovery Key for Admin
-  await prisma.adminRecoveryKey.create({
-    data: {
-      adminId: admin.id,
-      keyHash: hashPassword(adminRecoveryKey),
-      isUsed: false,
-    },
-  });
-
-  console.log(`Created Administrator: ${admin.email} (ID: ${admin.id})`);
-
-  console.log('Seeding projects...');
-  for (const title of initialProjects) {
-    await prisma.project.create({
+  if (!existingAdmin) {
+    console.log('No Administrator found. Seeding primary Administrator account...');
+    const admin = await prisma.user.create({
       data: {
-        title,
-        description: `${title} initiative tracking and operations.`,
-        createdById: admin.id,
+        name: adminName,
+        email: adminEmail,
+        passwordHash: hashPassword(adminPassword),
+        role: 'admin',
       },
     });
-  }
 
-  console.log(`Successfully created ${initialProjects.length} projects with 0 tasks.`);
+    await prisma.adminRecoveryKey.create({
+      data: {
+        adminId: admin.id,
+        keyHash: hashPassword(adminRecoveryKey),
+        isUsed: false,
+      },
+    });
+
+    console.log(`Created Administrator: ${admin.email} (ID: ${admin.id})`);
+
+    console.log('Seeding initial projects...');
+    for (const title of initialProjects) {
+      await prisma.project.create({
+        data: {
+          title,
+          description: `${title} initiative tracking and operations.`,
+          createdById: admin.id,
+        },
+      });
+    }
+    console.log(`Successfully created ${initialProjects.length} projects.`);
+  } else {
+    console.log(`Administrator account already exists (${existingAdmin.email}). Skipping seed initialization.`);
+  }
 }
 
 main()

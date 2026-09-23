@@ -74,7 +74,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'An internal server error occurred.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Program Matrix Backend server is running on port ${PORT} with active database`);
-  initNotificationCleanupJob();
-});
+// Start Server (supports Passenger & standard Node environments)
+if (typeof PhusionPassenger !== 'undefined') {
+  PhusionPassenger.configure({ autoInstall: false });
+  app.listen('passenger', () => {
+    console.log('Program Matrix Backend running under Phusion Passenger');
+    initNotificationCleanupJob();
+  });
+} else {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Program Matrix Backend server is running on port ${PORT} with active database`);
+    initNotificationCleanupJob();
+  });
+}
+
