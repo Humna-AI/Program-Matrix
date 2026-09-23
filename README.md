@@ -1,4 +1,4 @@
-# 🛡️ Program Matrix — Program & Project Tracking Management System
+# 🛡️ Program Matrix - Program & Project Tracking Management System
 
 A modern, secure, enterprise-grade Program and Project Management system built with strict **Role-Based Access Control (RBAC)**, real-time analytics, automated task tracking, and email-based password recovery.
 
