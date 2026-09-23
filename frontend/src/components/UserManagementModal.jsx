@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, KeyRound, Trash2, UserPlus, X, Search, ShieldAlert, Award, UserCheck, Check, AlertCircle, RefreshCw, LifeBuoy, Copy
+  Users, KeyRound, Trash2, UserPlus, X, Search, ShieldAlert, Award, UserCheck, Check, AlertCircle, RefreshCw, LifeBuoy, Copy, CheckCircle2, ShieldCheck, Sparkles
 } from 'lucide-react';
 
-export default function UserManagementModal({ isOpen, onClose, currentUserId }) {
+export default function UserManagementModal({ isOpen, onClose, currentUserId, onUserCreated }) {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,6 +14,10 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [addUserForm, setAddUserForm] = useState({ name: '', email: '', password: '', role: 'employee' });
   const [addLoading, setAddLoading] = useState(false);
+
+  // Newly Created User info card state
+  const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
+  const [copiedCredentials, setCopiedCredentials] = useState(false);
 
   // Change Password state
   const [passwordModalUser, setPasswordModalUser] = useState(null);
@@ -36,6 +40,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
       setKeyLoading(true);
       const res = await fetch('/api/auth/admin/recovery-key/generate', {
         method: 'POST',
+        credentials: 'include',
       });
       const data = await res.json();
       if (res.ok) {
@@ -58,16 +63,25 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
     setTimeout(() => setCopiedKey(false), 2500);
   };
 
+  const copyCredentialsToClipboard = () => {
+    if (!createdUserCredentials) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const text = `Program Matrix Account Details:\nName: ${createdUserCredentials.name}\nEmail: ${createdUserCredentials.email}\nPassword: ${createdUserCredentials.password}\nRole: ${createdUserCredentials.role}\nLogin URL: ${origin}`;
+    navigator.clipboard.writeText(text);
+    setCopiedCredentials(true);
+    setTimeout(() => setCopiedCredentials(false), 2500);
+  };
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/auth/admin/users');
+      const res = await fetch('/api/auth/admin/users', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users || []);
         setStats(data.stats || null);
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         setStatusMessage({ type: 'error', text: err.error || 'Failed to load user accounts.' });
       }
     } catch (err) {
@@ -94,19 +108,55 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
       return;
     }
 
+    const payload = {
+      name: addUserForm.name.trim(),
+      email: addUserForm.email.trim().toLowerCase(),
+      password: addUserForm.password.trim(),
+      role: addUserForm.role,
+    };
+
     try {
       setAddLoading(true);
       const res = await fetch('/api/auth/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addUserForm),
+        credentials: 'include',
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setStatusMessage({ type: 'success', text: `Account for ${data.user.name} created successfully!` });
+        // Save created user credentials to display directly to Admin
+        setCreatedUserCredentials({
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          password: payload.password,
+          role: data.user.role,
+        });
+
+        setStatusMessage({ 
+          type: 'success', 
+          text: `Account for ${data.user.name} (${data.user.email}) created successfully!` 
+        });
+
+        // Instant UI update
+        const newUserObj = {
+          ...data.user,
+          _count: { assignedTasks: 0, createdTasks: 0, projects: 0 },
+        };
+        setUsers((prev) => [newUserObj, ...prev.filter((u) => u.id !== data.user.id)]);
+        
+        // Reset form & close drawer
         setAddUserForm({ name: '', email: '', password: '', role: 'employee' });
         setIsAddingUser(false);
+
+        // Notify parent dashboard
+        if (onUserCreated) {
+          onUserCreated(data.user);
+        }
+
+        // Revalidate in background
         fetchUsers();
       } else {
         setStatusMessage({ type: 'error', text: data.error || 'Failed to create user.' });
@@ -131,6 +181,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
       const res = await fetch(`/api/auth/admin/users/${passwordModalUser.id}/password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ newPassword: newPasswordInput.trim() }),
       });
 
@@ -162,12 +213,18 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
     try {
       const res = await fetch(`/api/auth/admin/users/${userToDelete.id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await res.json();
       if (res.ok) {
         setStatusMessage({ type: 'success', text: data.message });
+        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+        if (createdUserCredentials?.id === userToDelete.id) {
+          setCreatedUserCredentials(null);
+        }
         fetchUsers();
+        if (onUserCreated) onUserCreated();
       } else {
         setStatusMessage({ type: 'error', text: data.error || 'Failed to delete user.' });
       }
@@ -228,7 +285,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
             </div>
             <div>
               <h3 className="text-lg font-bold text-white font-outfit">User Account Management</h3>
-              <p className="text-slate-400 text-xs">Manage active accounts, reset passwords, and assign roles.</p>
+              <p className="text-slate-400 text-xs">Create new accounts, manage existing users, reset passwords, and view credentials.</p>
             </div>
           </div>
           <button
@@ -256,6 +313,60 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
               <button onClick={() => setStatusMessage(null)} className="opacity-70 hover:opacity-100">
                 <X className="h-3.5 w-3.5" />
               </button>
+            </div>
+          )}
+
+          {/* Newly Created User Info Card */}
+          {createdUserCredentials && (
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span>New User Account Created & Active</span>
+                </div>
+                <button 
+                  onClick={() => setCreatedUserCredentials(null)} 
+                  className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition"
+                  title="Dismiss Info Box"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-950/80 border border-emerald-500/20 rounded-lg p-3 mb-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Name</span>
+                  <span className="font-semibold text-white truncate block">{createdUserCredentials.name}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Email Address</span>
+                  <span className="font-semibold text-emerald-300 truncate block font-mono">{createdUserCredentials.email}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Initial Password</span>
+                  <span className="font-semibold text-amber-300 truncate block font-mono">{createdUserCredentials.password}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Assigned Role</span>
+                  <span className="font-semibold text-indigo-300 capitalize block">{createdUserCredentials.role}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400 text-[11px]">
+                  Share these credentials securely with the user. They can now immediately log in.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={copyCredentialsToClipboard}
+                    className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer shadow-sm"
+                  >
+                    {copiedCredentials ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedCredentials ? 'Credentials Copied!' : 'Copy Account Details'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -364,9 +475,9 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
 
           {/* Add User Form Drawer */}
           {isAddingUser && (
-            <form onSubmit={handleAddUser} className="bg-slate-950/60 border border-slate-850 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-150">
+            <form onSubmit={handleAddUser} className="bg-slate-950/80 border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <UserPlus className="h-4 w-4 text-indigo-400" /> Create New Account
+                <UserPlus className="h-4 w-4 text-indigo-400" /> Create New User Account
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -375,7 +486,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Sarah Khan"
+                    placeholder="e.g. John Doe"
                     value={addUserForm.name}
                     onChange={(e) => setAddUserForm({ ...addUserForm, name: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
@@ -501,8 +612,9 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
                   <tbody className="divide-y divide-slate-800/60 text-xs">
                     {filteredUsers.map((u) => {
                       const isSelf = u.id === currentUserId;
+                      const isNewlyCreated = createdUserCredentials?.id === u.id;
                       return (
-                        <tr key={u.id} className="hover:bg-slate-800/30 transition">
+                        <tr key={u.id} className={`hover:bg-slate-800/30 transition ${isNewlyCreated ? 'bg-emerald-500/5' : ''}`}>
                           
                           {/* User info */}
                           <td className="py-3 px-4">
@@ -516,6 +628,11 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
                                   {isSelf && (
                                     <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.2 rounded border border-indigo-500/30">
                                       You
+                                    </span>
+                                  )}
+                                  {isNewlyCreated && (
+                                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30 flex items-center gap-0.5">
+                                      <Sparkles className="h-2.5 w-2.5" /> Newly Added
                                     </span>
                                   )}
                                 </div>
@@ -577,7 +694,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId }) 
 
         {/* Modal Footer */}
         <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/40 flex justify-between items-center text-xs text-slate-500">
-          <span>All passwords are automatically hashed with SHA-256 for high security.</span>
+          <span>All passwords are securely stored with SHA-256 cryptographic hashing.</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer"

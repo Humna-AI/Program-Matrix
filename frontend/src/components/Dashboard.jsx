@@ -1419,7 +1419,11 @@ export default function Dashboard() {
       {user.role === 'admin' && (
         <UserManagementModal
           isOpen={isUserManagementOpen}
-          onClose={() => setIsUserManagementOpen(false)}
+          onClose={() => {
+            setIsUserManagementOpen(false);
+            fetchData();
+          }}
+          onUserCreated={() => fetchData()}
           currentUserId={user.id}
         />
       )}
