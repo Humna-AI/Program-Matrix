@@ -20,10 +20,12 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../.env') });
 dotenv.config();
 
-// Ensure DATABASE_URL fallback exists if not specified in environment
-if (!process.env.DATABASE_URL) {
+// Ensure DATABASE_URL fallback exists and has valid file: prefix for SQLite
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.trim() === '') {
   const dbPath = path.resolve(__dirname, '../prisma/app.db');
   process.env.DATABASE_URL = `file:${dbPath}`;
+} else if (!process.env.DATABASE_URL.startsWith('file:')) {
+  process.env.DATABASE_URL = `file:${process.env.DATABASE_URL}`;
 }
 
 const app = express();

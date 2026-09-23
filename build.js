@@ -6,14 +6,66 @@
 
 import { execSync } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper to parse .env file without external dependencies
+function loadEnvFile(filePath) {
+  if (fs.existsSync(filePath)) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      content.split('\n').forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const idx = trimmed.indexOf('=');
+          const key = trimmed.slice(0, idx).trim();
+          let val = trimmed.slice(idx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (!process.env[key]) {
+            process.env[key] = val;
+          }
+        }
+      });
+    } catch (e) {}
+  }
+}
+
+loadEnvFile(path.join(__dirname, 'backend/.env'));
+loadEnvFile(path.join(__dirname, '.env'));
+
+// Ensure DATABASE_URL is properly formatted with file: prefix
+const dbPath = path.resolve(__dirname, 'backend/prisma/app.db');
+let dbUrl = process.env.DATABASE_URL;
+
+if (!dbUrl || dbUrl.trim() === '') {
+  dbUrl = `file:${dbPath}`;
+} else if (!dbUrl.startsWith('file:')) {
+  dbUrl = `file:${dbUrl}`;
+}
+
+const buildEnv = {
+  ...process.env,
+  DATABASE_URL: dbUrl,
+};
+
+// Also write or ensure backend/.env has DATABASE_URL for Prisma sub-processes
+try {
+  const backendEnvPath = path.join(__dirname, 'backend/.env');
+  if (!fs.existsSync(backendEnvPath)) {
+    fs.writeFileSync(backendEnvPath, `DATABASE_URL="${dbUrl}"\n`);
+  }
+} catch (e) {
+  // Continue if filesystem is read-only for new files
+}
+
 function run(cmd, cwd = __dirname) {
   console.log(`\n▶ Running: ${cmd} (in ${cwd})`);
-  execSync(cmd, { stdio: 'inherit', cwd });
+  execSync(cmd, { stdio: 'inherit', cwd, env: buildEnv });
 }
 
 try {
