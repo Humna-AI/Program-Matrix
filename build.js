@@ -31,7 +31,7 @@ function loadEnvFile(filePath) {
           }
         }
       });
-    } catch (e) {}
+    } catch (e) { }
   }
 }
 
