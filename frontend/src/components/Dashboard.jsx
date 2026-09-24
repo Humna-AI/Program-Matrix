@@ -555,8 +555,8 @@ export default function Dashboard() {
     cutout: '72%',
   };
 
-  // Filters for assigning task (we only assign to employees or managers)
-  const assignableUsers = usersList.filter(u => u.role !== 'admin');
+  // Team members available for task assignment
+  const assignableUsers = usersList;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">

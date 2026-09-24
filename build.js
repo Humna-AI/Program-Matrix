@@ -96,22 +96,6 @@ try {
   run('npx prisma db push --skip-generate --accept-data-loss', path.join(__dirname, 'backend'));
   run('node prisma/seed.js', path.join(__dirname, 'backend'));
 
-  // Ensure database file is duplicated to root/prisma/app.db for root-based passenger environments
-  try {
-    const backendDbFile = path.join(__dirname, 'backend/prisma/app.db');
-    const rootPrismaDir = path.join(__dirname, 'prisma');
-    const rootDbFile = path.join(rootPrismaDir, 'app.db');
-    if (fs.existsSync(backendDbFile)) {
-      if (!fs.existsSync(rootPrismaDir)) {
-        fs.mkdirSync(rootPrismaDir, { recursive: true });
-      }
-      fs.copyFileSync(backendDbFile, rootDbFile);
-      console.log('✅ Database successfully synchronized to both root and backend directories.');
-    }
-  } catch (e) {
-    console.log('Notice: Db sync copy:', e.message);
-  }
-
   console.log('\n================================================================');
   console.log('🎉 BUILD & DATABASE SETUP COMPLETED SUCCESSFULLY!');
   console.log('================================================================\n');
