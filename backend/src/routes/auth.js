@@ -7,6 +7,7 @@ import {
   getUsers,
   getAdminUsers,
   adminCreateUser,
+  adminUpdateUser,
   adminChangePassword,
   adminDeleteUser
 } from '../controllers/authController.js';
@@ -27,6 +28,7 @@ router.use('/admin', adminAuthRoutes);
 // Admin-only User Management Routes
 router.get('/admin/users', authenticateToken, requireRole(['admin']), getAdminUsers);
 router.post('/admin/users', authenticateToken, requireRole(['admin']), adminCreateUser);
+router.put('/admin/users/:id', authenticateToken, requireRole(['admin']), adminUpdateUser);
 router.patch('/admin/users/:id/password', authenticateToken, requireRole(['admin']), adminChangePassword);
 router.delete('/admin/users/:id', authenticateToken, requireRole(['admin']), adminDeleteUser);
 

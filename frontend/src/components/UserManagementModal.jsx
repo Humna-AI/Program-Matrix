@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, KeyRound, Trash2, UserPlus, X, Search, ShieldAlert, Award, UserCheck, Check, AlertCircle, RefreshCw, LifeBuoy, Copy, CheckCircle2, ShieldCheck, Sparkles
+  Users, KeyRound, Trash2, UserPlus, X, Search, ShieldAlert, Award, UserCheck, Check, AlertCircle, RefreshCw, LifeBuoy, Copy, CheckCircle2, ShieldCheck, Sparkles, Pencil, UserCircle2, ArrowRight
 } from 'lucide-react';
 
 export default function UserManagementModal({ isOpen, onClose, currentUserId, onUserCreated }) {
@@ -14,6 +14,11 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [addUserForm, setAddUserForm] = useState({ name: '', email: '', password: '', role: 'employee' });
   const [addLoading, setAddLoading] = useState(false);
+
+  // Edit User form state
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', role: 'employee' });
+  const [editLoading, setEditLoading] = useState(false);
 
   // Newly Created User info card state
   const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
@@ -98,6 +103,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
       setStatusMessage(null);
       setIsAddingUser(false);
       setPasswordModalUser(null);
+      setEditingUser(null);
     }
   }, [isOpen]);
 
@@ -166,6 +172,56 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
       setStatusMessage({ type: 'error', text: 'Network error creating user.' });
     } finally {
       setAddLoading(false);
+    }
+  };
+
+  const handleOpenEditUser = (user) => {
+    setEditingUser(user);
+    setEditUserForm({
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role || 'employee',
+    });
+    setStatusMessage(null);
+    setPasswordModalUser(null);
+    setIsAddingUser(false);
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    if (!editUserForm.name.trim() || !editUserForm.email.trim()) {
+      setStatusMessage({ type: 'error', text: 'Name and email are required.' });
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      const res = await fetch(`/api/auth/admin/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editUserForm.name.trim(),
+          email: editUserForm.email.trim().toLowerCase(),
+          role: editUserForm.role,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setStatusMessage({ type: 'success', text: `Account for ${data.user.name} updated successfully!` });
+        setUsers((prev) => prev.map((u) => u.id === editingUser.id ? { ...u, ...data.user } : u));
+        setEditingUser(null);
+        fetchUsers();
+        if (onUserCreated) onUserCreated();
+      } else {
+        setStatusMessage({ type: 'error', text: data.error || 'Failed to update user.' });
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ type: 'error', text: 'Network error updating user profile.' });
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -285,7 +341,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
             </div>
             <div>
               <h3 className="text-lg font-bold text-white font-outfit">User Account Management</h3>
-              <p className="text-slate-400 text-xs">Create new accounts, manage existing users, reset passwords, and view credentials.</p>
+              <p className="text-slate-400 text-xs">Register new employees, update accounts, reset passwords, and assign roles.</p>
             </div>
           </div>
           <button
@@ -464,7 +520,11 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
               </button>
 
               <button
-                onClick={() => setIsAddingUser(!isAddingUser)}
+                onClick={() => {
+                  setIsAddingUser(!isAddingUser);
+                  setEditingUser(null);
+                  setPasswordModalUser(null);
+                }}
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer shadow-sm"
               >
                 {isAddingUser ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
@@ -506,7 +566,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Password</label>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Initial Password</label>
                   <input
                     type="password"
                     required
@@ -546,6 +606,79 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
                   className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
                 >
                   {addLoading ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Edit User Form Drawer */}
+          {editingUser && (
+            <form onSubmit={handleUpdateUser} className="bg-slate-950/80 border border-amber-500/30 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Pencil className="h-4 w-4 text-amber-400" /> Edit Profile: <strong className="text-amber-300">{editingUser.name}</strong>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editUserForm.name}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={editUserForm.email}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Role</label>
+                  <select
+                    value={editUserForm.role}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, role: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="manager">Operations Lead</option>
+                    <option value="executive">Executive</option>
+                    <option value="admin">Program Manager</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-3 py-1 text-xs text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
+                >
+                  {editLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -657,18 +790,31 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
                           {/* Actions */}
                           <td className="py-3 px-4 text-right">
                             <div className="inline-flex items-center gap-1.5 justify-end">
+                              {/* Edit Profile */}
+                              <button
+                                onClick={() => handleOpenEditUser(u)}
+                                title="Edit Name, Email, or Role"
+                                className="p-1.5 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg border border-transparent hover:border-amber-500/20 transition cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+
+                              {/* Change Password */}
                               <button
                                 onClick={() => {
                                   setPasswordModalUser(u);
                                   setNewPasswordInput('');
                                   setStatusMessage(null);
+                                  setEditingUser(null);
+                                  setIsAddingUser(false);
                                 }}
-                                title="Change Password"
+                                title="Reset / Change Password"
                                 className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg border border-transparent hover:border-indigo-500/20 transition cursor-pointer"
                               >
                                 <KeyRound className="h-4 w-4" />
                               </button>
 
+                              {/* Delete Account */}
                               {!isSelf && (
                                 <button
                                   onClick={() => handleDeleteUser(u)}
@@ -689,6 +835,19 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
               </div>
             )}
           </div>
+
+          {/* Helper onboarding note if only 1 user (admin) exists */}
+          {users.length === 1 && (
+            <div className="rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-4 text-xs text-slate-300 flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
+                <UserPlus className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="font-semibold text-white block mb-0.5">Ready to onboard your team?</span>
+                <span>Click the <strong>+ Add New User</strong> button in the top right to register Employees, Operations Leads, or Executives. Once created, they will appear in this directory and can sign in immediately.</span>
+              </div>
+            </div>
+          )}
 
         </div>
 

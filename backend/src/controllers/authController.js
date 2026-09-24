@@ -286,3 +286,54 @@ export const adminCreateUser = async (req, res) => {
   }
 };
 
+/**
+ * Admin: Update user profile details (Name, Email, Role)
+ */
+export const adminUpdateUser = async (req, res) => {
+  const { id } = req.params;
+  const { name, email, role } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required.' });
+  }
+
+  const allowedRoles = ['admin', 'manager', 'employee', 'executive'];
+  const userRole = role && allowedRoles.includes(role.toLowerCase()) ? role.toLowerCase() : 'employee';
+
+  try {
+    const targetUser = await prisma.user.findUnique({ where: { id: parseInt(id) } });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail !== targetUser.email) {
+      const emailInUse = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+      if (emailInUse && emailInUse.id !== targetUser.id) {
+        return res.status(400).json({ error: 'This email is already in use by another account.' });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: {
+        name: name.trim(),
+        email: normalizedEmail,
+        role: userRole,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    res.json({ message: `Account for ${updatedUser.name} updated successfully.`, user: updatedUser });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update user profile.' });
+  }
+};
+
+
