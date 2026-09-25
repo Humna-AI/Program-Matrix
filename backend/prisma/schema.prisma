@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -15,6 +15,7 @@ model User {
   email               String               @unique
   passwordHash        String
   role                String               // "admin", "manager", "employee", "executive"
+  avatar              String?              // Base64 profile photo data URL or image URL
   projects            Project[]            @relation("CreatedProjects")
   assignedTasks       Task[]               @relation("AssignedTasks")
   createdTasks        Task[]               @relation("CreatedTasks")

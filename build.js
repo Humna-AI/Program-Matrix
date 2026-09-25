@@ -38,37 +38,31 @@ function loadEnvFile(filePath) {
 loadEnvFile(path.join(__dirname, 'backend/.env'));
 loadEnvFile(path.join(__dirname, '.env'));
 
-// Ensure DATABASE_URL is properly formatted with file: prefix
-const dbPath = path.resolve(__dirname, 'backend/prisma/app.db');
 let dbUrl = process.env.DATABASE_URL;
-
-if (!dbUrl || dbUrl.trim() === '') {
-  dbUrl = `file:${dbPath}`;
-} else if (!dbUrl.startsWith('file:')) {
-  dbUrl = `file:${dbUrl}`;
-}
 
 const buildEnv = {
   ...process.env,
-  DATABASE_URL: dbUrl,
+  ...(dbUrl ? { DATABASE_URL: dbUrl } : {}),
 };
 
-// Also write or ensure backend/.env has DATABASE_URL for Prisma sub-processes
-try {
-  const backendEnvPath = path.join(__dirname, 'backend/.env');
-  let content = '';
-  if (fs.existsSync(backendEnvPath)) {
-    content = fs.readFileSync(backendEnvPath, 'utf-8');
+// Also write or ensure backend/.env has DATABASE_URL for Prisma sub-processes if available
+if (dbUrl) {
+  try {
+    const backendEnvPath = path.join(__dirname, 'backend/.env');
+    let content = '';
+    if (fs.existsSync(backendEnvPath)) {
+      content = fs.readFileSync(backendEnvPath, 'utf-8');
+    }
+    if (!content.includes('DATABASE_URL=')) {
+      content += `\nDATABASE_URL="${dbUrl}"\n`;
+      fs.writeFileSync(backendEnvPath, content);
+    } else {
+      content = content.replace(/^DATABASE_URL=.*/m, `DATABASE_URL="${dbUrl}"`);
+      fs.writeFileSync(backendEnvPath, content);
+    }
+  } catch (e) {
+    // Continue if filesystem is read-only for new files
   }
-  if (!content.includes('DATABASE_URL=')) {
-    content += `\nDATABASE_URL="${dbUrl}"\n`;
-    fs.writeFileSync(backendEnvPath, content);
-  } else {
-    content = content.replace(/^DATABASE_URL=.*/m, `DATABASE_URL="${dbUrl}"`);
-    fs.writeFileSync(backendEnvPath, content);
-  }
-} catch (e) {
-  // Continue if filesystem is read-only for new files
 }
 
 function run(cmd, cwd = __dirname) {

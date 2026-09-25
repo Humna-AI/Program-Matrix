@@ -3,6 +3,7 @@ import {
   ListTodo, Calendar, User, Folder, CheckSquare, Clock, AlertCircle, History, CheckCircle2, RotateCcw, Check, ArrowRight, ExternalLink, MessageSquare
 } from 'lucide-react';
 import LinkifiedText from './LinkifiedText';
+import UserAvatar from './UserAvatar';
 
 export default function EmployeePortal() {
   const [tasks, setTasks] = useState([]);
@@ -193,8 +194,8 @@ export default function EmployeePortal() {
         {/* Supervisor & Re-assignment section */}
         <div className="bg-slate-950/60 border border-slate-850/80 rounded-xl p-2.5 mb-3.5 space-y-2 text-xs">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="flex items-center gap-1.5 text-slate-400">
-              <User className="h-3.5 w-3.5 text-slate-500" />
+            <span className="flex items-center gap-2 text-slate-400">
+              <UserAvatar user={task.assignedBy} size="xs" />
               <span>Assigned by: <strong className="text-slate-300 font-medium">{task.assignedBy?.name}</strong></span>
             </span>
           </div>

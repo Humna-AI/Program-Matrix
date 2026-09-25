@@ -14,7 +14,7 @@ export const getProjects = async (req, res) => {
         },
         include: {
           createdBy: {
-            select: { id: true, name: true, email: true, role: true },
+            select: { id: true, name: true, email: true, role: true, avatar: true },
           },
           tasks: {
             select: { id: true, status: true, dueDate: true },
@@ -26,7 +26,7 @@ export const getProjects = async (req, res) => {
       projects = await prisma.project.findMany({
         include: {
           createdBy: {
-            select: { id: true, name: true, email: true, role: true },
+            select: { id: true, name: true, email: true, role: true, avatar: true },
           },
           tasks: {
             select: { id: true, status: true, dueDate: true },
@@ -55,7 +55,7 @@ export const getProjects = async (req, res) => {
         },
         include: {
           createdBy: {
-            select: { id: true, name: true, email: true, role: true },
+            select: { id: true, name: true, email: true, role: true, avatar: true },
           },
           tasks: {
             select: { id: true, status: true, dueDate: true },

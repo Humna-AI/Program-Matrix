@@ -4,6 +4,7 @@ import {
   login, 
   logout, 
   me, 
+  updateProfile,
   getUsers,
   getAdminUsers,
   adminCreateUser,
@@ -20,6 +21,7 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/logout', logout);
 router.get('/me', authenticateToken, me);
+router.put('/profile', authenticateToken, updateProfile);
 router.get('/users', authenticateToken, getUsers);
 
 // Dedicated Admin Authentication & Password Recovery Sub-Router

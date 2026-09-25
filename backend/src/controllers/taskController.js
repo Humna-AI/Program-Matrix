@@ -8,11 +8,11 @@ export const getTasks = async (req, res) => {
   try {
     const taskInclude = {
       project: { select: { id: true, title: true, link: true } },
-      assignedTo: { select: { id: true, name: true, email: true } },
-      assignedBy: { select: { id: true, name: true, email: true } },
+      assignedTo: { select: { id: true, name: true, email: true, avatar: true } },
+      assignedBy: { select: { id: true, name: true, email: true, avatar: true } },
       histories: {
         include: {
-          changedBy: { select: { id: true, name: true } }
+          changedBy: { select: { id: true, name: true, avatar: true } }
         },
         orderBy: { createdAt: 'desc' }
       }
@@ -113,8 +113,8 @@ export const createTask = async (req, res) => {
       },
       include: {
         project: { select: { id: true, title: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
-        assignedBy: { select: { id: true, name: true, email: true } },
+        assignedTo: { select: { id: true, name: true, email: true, avatar: true } },
+        assignedBy: { select: { id: true, name: true, email: true, avatar: true } },
       },
     });
 

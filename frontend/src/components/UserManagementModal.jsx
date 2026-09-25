@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Users, KeyRound, Trash2, UserPlus, X, Search, ShieldAlert, Award, UserCheck, Check, AlertCircle, RefreshCw, LifeBuoy, Copy, CheckCircle2, ShieldCheck, Sparkles, Pencil, UserCircle2, ArrowRight
+  Users, KeyRound, Trash2, UserPlus, X, Search, ShieldAlert, Award, UserCheck, Check, AlertCircle, RefreshCw, LifeBuoy, Copy, CheckCircle2, ShieldCheck, Sparkles, Pencil, UserCircle2, ArrowRight, Camera, Upload
 } from 'lucide-react';
+import UserAvatar from './UserAvatar';
+import { compressImage } from '../utils/imageCompressor';
 
 export default function UserManagementModal({ isOpen, onClose, currentUserId, onUserCreated }) {
   const [users, setUsers] = useState([]);
@@ -12,13 +14,18 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
 
   // Add User form state
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [addUserForm, setAddUserForm] = useState({ name: '', email: '', password: '', role: 'employee' });
+  const [addUserForm, setAddUserForm] = useState({ name: '', email: '', password: '', role: 'employee', avatar: null });
+  const [addAvatarPreview, setAddAvatarPreview] = useState(null);
   const [addLoading, setAddLoading] = useState(false);
+  const addFileInputRef = useRef(null);
 
   // Edit User form state
   const [editingUser, setEditingUser] = useState(null);
-  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', role: 'employee' });
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', role: 'employee', avatar: null });
+  const [editAvatarPreview, setEditAvatarPreview] = useState(null);
+  const [isEditPhotoRemoved, setIsEditPhotoRemoved] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const editFileInputRef = useRef(null);
 
   // Newly Created User info card state
   const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
@@ -107,6 +114,31 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
     }
   }, [isOpen]);
 
+  const handleSelectAddAvatar = async (file) => {
+    if (!file) return;
+    try {
+      const dataUrl = await compressImage(file, 256, 256, 0.85);
+      setAddAvatarPreview(dataUrl);
+      setAddUserForm((prev) => ({ ...prev, avatar: dataUrl }));
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ type: 'error', text: 'Failed to process avatar image.' });
+    }
+  };
+
+  const handleSelectEditAvatar = async (file) => {
+    if (!file) return;
+    try {
+      const dataUrl = await compressImage(file, 256, 256, 0.85);
+      setEditAvatarPreview(dataUrl);
+      setIsEditPhotoRemoved(false);
+      setEditUserForm((prev) => ({ ...prev, avatar: dataUrl }));
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ type: 'error', text: 'Failed to process avatar image.' });
+    }
+  };
+
   const handleAddUser = async (e) => {
     e.preventDefault();
     if (!addUserForm.name.trim() || !addUserForm.email.trim() || !addUserForm.password.trim()) {
@@ -119,6 +151,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
       email: addUserForm.email.trim().toLowerCase(),
       password: addUserForm.password.trim(),
       role: addUserForm.role,
+      avatar: addUserForm.avatar || null,
     };
 
     try {
@@ -139,6 +172,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
           email: data.user.email,
           password: payload.password,
           role: data.user.role,
+          avatar: data.user.avatar,
         });
 
         setStatusMessage({ 
@@ -154,7 +188,8 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
         setUsers((prev) => [newUserObj, ...prev.filter((u) => u.id !== data.user.id)]);
         
         // Reset form & close drawer
-        setAddUserForm({ name: '', email: '', password: '', role: 'employee' });
+        setAddUserForm({ name: '', email: '', password: '', role: 'employee', avatar: null });
+        setAddAvatarPreview(null);
         setIsAddingUser(false);
 
         // Notify parent dashboard
@@ -181,7 +216,10 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
       name: user.name || '',
       email: user.email || '',
       role: user.role || 'employee',
+      avatar: user.avatar || null,
     });
+    setEditAvatarPreview(user.avatar || null);
+    setIsEditPhotoRemoved(false);
     setStatusMessage(null);
     setPasswordModalUser(null);
     setIsAddingUser(false);
@@ -204,6 +242,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
           name: editUserForm.name.trim(),
           email: editUserForm.email.trim().toLowerCase(),
           role: editUserForm.role,
+          avatar: isEditPhotoRemoved ? null : editAvatarPreview,
         }),
       });
 
@@ -389,22 +428,32 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-950/80 border border-emerald-500/20 rounded-lg p-3 mb-3">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Name</span>
-                  <span className="font-semibold text-white truncate block">{createdUserCredentials.name}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Email Address</span>
-                  <span className="font-semibold text-emerald-300 truncate block font-mono">{createdUserCredentials.email}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Initial Password</span>
-                  <span className="font-semibold text-amber-300 truncate block font-mono">{createdUserCredentials.password}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Assigned Role</span>
-                  <span className="font-semibold text-indigo-300 capitalize block">{createdUserCredentials.role}</span>
+              <div className="flex items-center gap-3 bg-slate-950/80 border border-emerald-500/20 rounded-lg p-3 mb-3">
+                <UserAvatar
+                  src={createdUserCredentials.avatar}
+                  name={createdUserCredentials.name}
+                  role={createdUserCredentials.role}
+                  size="lg"
+                  showRoleBorder={true}
+                  className="shrink-0"
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 flex-1">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Name</span>
+                    <span className="font-semibold text-white truncate block">{createdUserCredentials.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Email Address</span>
+                    <span className="font-semibold text-emerald-300 truncate block font-mono">{createdUserCredentials.email}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Initial Password</span>
+                    <span className="font-semibold text-amber-300 truncate block font-mono">{createdUserCredentials.password}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Assigned Role</span>
+                    <span className="font-semibold text-indigo-300 capitalize block">{createdUserCredentials.role}</span>
+                  </div>
                 </div>
               </div>
 
@@ -535,10 +584,57 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
 
           {/* Add User Form Drawer */}
           {isAddingUser && (
-            <form onSubmit={handleAddUser} className="bg-slate-950/80 border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
+            <form onSubmit={handleAddUser} className="bg-slate-950/80 border border-indigo-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2 duration-150 shadow-lg">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                 <UserPlus className="h-4 w-4 text-indigo-400" /> Create New User Account
               </h4>
+
+              {/* Avatar Upload in Add User */}
+              <div className="flex items-center gap-4 p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+                <UserAvatar
+                  src={addAvatarPreview}
+                  name={addUserForm.name || 'New User'}
+                  role={addUserForm.role}
+                  size="lg"
+                  showRoleBorder={true}
+                />
+                <div className="space-y-1">
+                  <span className="block text-[11px] font-medium text-slate-300">Profile Photo (Optional)</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => addFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
+                    >
+                      <Camera className="h-3 w-3" />
+                      <span>{addAvatarPreview ? 'Change Photo' : 'Upload Photo'}</span>
+                    </button>
+                    {addAvatarPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddAvatarPreview(null);
+                          setAddUserForm((prev) => ({ ...prev, avatar: null }));
+                        }}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 px-2 py-1"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={addFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        handleSelectAddAvatar(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
@@ -613,7 +709,7 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
 
           {/* Edit User Form Drawer */}
           {editingUser && (
-            <form onSubmit={handleUpdateUser} className="bg-slate-950/80 border border-amber-500/30 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-lg">
+            <form onSubmit={handleUpdateUser} className="bg-slate-950/80 border border-amber-500/30 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2 duration-150 shadow-lg">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                   <Pencil className="h-4 w-4 text-amber-400" /> Edit Profile: <strong className="text-amber-300">{editingUser.name}</strong>
@@ -625,6 +721,54 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
                 >
                   <X className="h-4 w-4" />
                 </button>
+              </div>
+
+              {/* Avatar Upload in Edit User */}
+              <div className="flex items-center gap-4 p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+                <UserAvatar
+                  src={isEditPhotoRemoved ? null : editAvatarPreview}
+                  name={editUserForm.name || editingUser.name}
+                  role={editUserForm.role}
+                  size="lg"
+                  showRoleBorder={true}
+                />
+                <div className="space-y-1">
+                  <span className="block text-[11px] font-medium text-slate-300">User Profile Photo</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-500 text-white transition cursor-pointer"
+                    >
+                      <Camera className="h-3 w-3" />
+                      <span>{editAvatarPreview && !isEditPhotoRemoved ? 'Change Photo' : 'Upload Photo'}</span>
+                    </button>
+                    {(editAvatarPreview || editingUser.avatar) && !isEditPhotoRemoved && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditAvatarPreview(null);
+                          setIsEditPhotoRemoved(true);
+                          setEditUserForm((prev) => ({ ...prev, avatar: null }));
+                        }}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 px-2 py-1"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        handleSelectEditAvatar(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -749,12 +893,15 @@ export default function UserManagementModal({ isOpen, onClose, currentUserId, on
                       return (
                         <tr key={u.id} className={`hover:bg-slate-800/30 transition ${isNewlyCreated ? 'bg-emerald-500/5' : ''}`}>
                           
-                          {/* User info */}
+                          {/* User info with Avatar */}
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                                {u.name.charAt(0).toUpperCase()}
-                              </div>
+                              <UserAvatar
+                                user={u}
+                                size="sm"
+                                showRoleBorder={true}
+                                className="shrink-0"
+                              />
                               <div className="min-w-0">
                                 <div className="font-semibold text-white truncate flex items-center gap-1.5">
                                   <span>{u.name}</span>

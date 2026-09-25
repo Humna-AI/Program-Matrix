@@ -7,15 +7,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config();
 
-const canonicalDbPath = path.resolve(__dirname, 'app.db');
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: `file:${canonicalDbPath}`,
-    },
-  },
-});
+const prisma = new PrismaClient();
 
 const hashPassword = (password) => crypto.createHash('sha256').update(password).digest('hex');
 

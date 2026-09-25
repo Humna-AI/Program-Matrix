@@ -13,7 +13,7 @@ export const hashPassword = (password) => {
 };
 
 export const register = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, avatar } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
@@ -37,12 +37,14 @@ export const register = async (req, res) => {
         email,
         passwordHash,
         role: userRole,
+        avatar: avatar || null,
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        avatar: true,
       },
     });
 
@@ -110,6 +112,7 @@ export const login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar,
       },
     });
   } catch (error) {
@@ -131,6 +134,41 @@ export const me = (req, res) => {
   res.json({ user: req.user });
 };
 
+/**
+ * Any authenticated user can update their profile (Name and/or Avatar photo)
+ */
+export const updateProfile = async (req, res) => {
+  const userId = req.user.id;
+  const { name, avatar } = req.body;
+
+  try {
+    const updateData = {};
+    if (typeof name === 'string' && name.trim()) {
+      updateData.name = name.trim();
+    }
+    if (avatar !== undefined) {
+      updateData.avatar = avatar || null;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+      },
+    });
+
+    res.json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile.' });
+  }
+};
+
 export const getUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -139,6 +177,7 @@ export const getUsers = async (req, res) => {
         name: true,
         email: true,
         role: true,
+        avatar: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -160,6 +199,7 @@ export const getAdminUsers = async (req, res) => {
         name: true,
         email: true,
         role: true,
+        avatar: true,
         _count: {
           select: {
             assignedTasks: true,
@@ -248,7 +288,7 @@ export const adminDeleteUser = async (req, res) => {
  * Admin: Create a new user account directly
  */
 export const adminCreateUser = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, avatar } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required.' });
@@ -270,12 +310,14 @@ export const adminCreateUser = async (req, res) => {
         email: email.trim().toLowerCase(),
         passwordHash,
         role: userRole,
+        avatar: avatar || null,
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        avatar: true,
       },
     });
 
@@ -287,11 +329,11 @@ export const adminCreateUser = async (req, res) => {
 };
 
 /**
- * Admin: Update user profile details (Name, Email, Role)
+ * Admin: Update user profile details (Name, Email, Role, Avatar)
  */
 export const adminUpdateUser = async (req, res) => {
   const { id } = req.params;
-  const { name, email, role } = req.body;
+  const { name, email, role, avatar } = req.body;
 
   if (!name || !email) {
     return res.status(400).json({ error: 'Name and email are required.' });
@@ -314,18 +356,25 @@ export const adminUpdateUser = async (req, res) => {
       }
     }
 
+    const updateData = {
+      name: name.trim(),
+      email: normalizedEmail,
+      role: userRole,
+    };
+
+    if (avatar !== undefined) {
+      updateData.avatar = avatar || null;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
-      data: {
-        name: name.trim(),
-        email: normalizedEmail,
-        role: userRole,
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        avatar: true,
       },
     });
 

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import LinkifiedText from './LinkifiedText';
 import UserManagementModal from './UserManagementModal';
+import UserAvatar from './UserAvatar';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -1124,18 +1125,26 @@ export default function Dashboard() {
                       
                       {/* Inline re-assignment selector */}
                       <td className="py-3.5 px-4">
-                        <select
-                          value={task.assignedTo.id}
-                          onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
-                          className="bg-slate-950/60 border border-slate-850 hover:border-slate-700/80 rounded-xl px-2.5 py-1 text-xs text-slate-350 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition cursor-pointer"
-                        >
-                          {assignableUsers.map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                          ))}
-                        </select>
+                        <div className="flex items-center gap-2">
+                          <UserAvatar user={task.assignedTo} size="xs" />
+                          <select
+                            value={task.assignedTo.id}
+                            onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
+                            className="bg-slate-950/60 border border-slate-850 hover:border-slate-700/80 rounded-xl px-2.5 py-1 text-xs text-slate-350 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition cursor-pointer"
+                          >
+                            {assignableUsers.map(u => (
+                              <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                       
-                      <td className="py-3.5 px-4 text-slate-400">{task.assignedBy.name}</td>
+                      <td className="py-3.5 px-4 text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <UserAvatar user={task.assignedBy} size="xs" />
+                          <span>{task.assignedBy.name}</span>
+                        </div>
+                      </td>
                       <td className={`py-3.5 px-4 font-medium ${isOverdue ? 'text-rose-400 font-semibold' : 'text-slate-400'}`}>
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">

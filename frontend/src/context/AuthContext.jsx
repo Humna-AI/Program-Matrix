@@ -81,8 +81,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUserProfile = async (profileData) => {
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update profile');
+      }
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      throw err;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, registerUser, logout, fetchProfile }}>
+    <AuthContext.Provider value={{ user, setUser, loading, error, login, registerUser, logout, fetchProfile, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );
