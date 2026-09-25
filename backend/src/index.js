@@ -11,6 +11,7 @@ import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
 import notificationRoutes from './routes/notifications.js';
 import { initNotificationCleanupJob } from './utils/notificationCleanup.js';
+import { autoInitDatabase } from './utils/dbAutoInit.js';
 
 // Resolve __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -74,11 +75,13 @@ if (typeof PhusionPassenger !== 'undefined') {
   app.listen('passenger', () => {
     console.log('Program Matrix Backend running under Phusion Passenger');
     initNotificationCleanupJob();
+    autoInitDatabase();
   });
 } else {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Program Matrix Backend server is running on port ${PORT} with active database`);
     initNotificationCleanupJob();
+    autoInitDatabase();
   });
 }
 

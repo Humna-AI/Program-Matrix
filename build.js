@@ -87,11 +87,28 @@ try {
 
   // Step 3: Database Schema & Seeding
   console.log('\n🗄️  Step 3: Initializing database schema and seeding Administrator...');
-  run('npx prisma db push --skip-generate --accept-data-loss', path.join(__dirname, 'backend'));
-  run('node prisma/seed.js', path.join(__dirname, 'backend'));
+  const isPostgresUrl = dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'));
 
-  console.log('\n================================================================');
-  console.log('🎉 BUILD & DATABASE SETUP COMPLETED SUCCESSFULLY!');
+  if (isPostgresUrl) {
+    try {
+      console.log('Valid PostgreSQL DATABASE_URL detected. Synchronizing schema & seeding...');
+      run('npx prisma db push --skip-generate --accept-data-loss', path.join(__dirname, 'backend'));
+      run('node prisma/seed.js', path.join(__dirname, 'backend'));
+    } catch (dbErr) {
+      console.warn('\n⚠️ Database sync warning during build:', dbErr.message);
+      console.warn('The build will continue. Ensure the PostgreSQL database is reachable from your server.\n');
+    }
+  } else {
+    console.log('\nℹ️  Notice: No valid PostgreSQL DATABASE_URL detected in build environment.');
+    console.log('   (Current value: ' + (dbUrl ? `"${dbUrl.slice(0, 15)}..."` : 'undefined') + ')');
+    console.log('👉 To enable persistent cloud database storage on Render:');
+    console.log('   1. Create a PostgreSQL database on Render Dashboard');
+    console.log('   2. Set "DATABASE_URL" in your Web Service Environment Variables');
+    console.log('   Skipping database schema push during static asset build phase.\n');
+  }
+
+  console.log('================================================================');
+  console.log('🎉 BUILD PROCESS COMPLETED SUCCESSFULLY!');
   console.log('================================================================\n');
 } catch (error) {
   console.error('\n❌ Build process encountered an error:', error.message);
