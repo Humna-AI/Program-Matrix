@@ -37,8 +37,8 @@ const initialProjects = [
 
 export async function autoInitDatabase() {
   const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
-    console.log('[DB Auto-Init] Notice: DATABASE_URL is not set to a PostgreSQL URL. Please configure it in your Render environment.');
+  if (!dbUrl) {
+    console.log('[DB Auto-Init] Notice: DATABASE_URL is not set.');
     return;
   }
 

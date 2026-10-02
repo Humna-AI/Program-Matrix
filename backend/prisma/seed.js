@@ -1,4 +1,4 @@
-import { PrismaClient } from '../src/generated/client_v2/index.js';
+import { PrismaClient } from '../src/generated/client_v3/index.js';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import path from 'path';

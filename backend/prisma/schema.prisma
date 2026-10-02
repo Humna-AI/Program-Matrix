@@ -1,11 +1,11 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider      = "prisma-client-js"
-  output        = "../src/generated/client_v2"
+  output        = "../src/generated/client_v3"
   binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x", "windows"]
 }
 

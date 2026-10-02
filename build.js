@@ -83,11 +83,20 @@ try {
   // Step 2: Backend Dependencies & Prisma
   console.log('\n⚙️  Step 2: Installing backend dependencies and generating Prisma client...');
   run('npm install --include=dev', path.join(__dirname, 'backend'));
+  
+  const isPostgresUrl = dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'));
+  const schemaPath = path.join(__dirname, 'backend/prisma/schema.prisma');
+  if (fs.existsSync(schemaPath)) {
+    let schemaContent = fs.readFileSync(schemaPath, 'utf-8');
+    const targetProvider = isPostgresUrl ? 'postgresql' : 'sqlite';
+    schemaContent = schemaContent.replace(/provider\s*=\s*"[^"]+"/, `provider = "${targetProvider}"`);
+    fs.writeFileSync(schemaPath, schemaContent);
+  }
+
   run('npx prisma generate', path.join(__dirname, 'backend'));
 
   // Step 3: Database Schema & Seeding
   console.log('\n🗄️  Step 3: Initializing database schema and seeding Administrator...');
-  const isPostgresUrl = dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'));
 
   if (isPostgresUrl) {
     try {

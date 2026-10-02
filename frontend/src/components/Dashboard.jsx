@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { 
-  Folder, CheckCircle2, Clock, AlertTriangle, ListTodo, Plus, Calendar, User, AlignLeft, BarChart3, Users, ChevronRight, X, Trash2, Pencil, History, Filter, Search, RotateCcw, CalendarRange, ArrowUpDown, Tag, Sparkles, Check, ExternalLink, Link2, Globe, MessageSquare, MessageSquarePlus
+  Folder, CheckCircle2, Clock, AlertTriangle, ListTodo, Plus, Calendar, User, AlignLeft, BarChart3, Users, ChevronRight, X, Trash2, Pencil, History, Filter, Search, RotateCcw, CalendarRange, ArrowUpDown, Tag, Sparkles, Check, ExternalLink, Link2, Globe, MessageSquare, MessageSquarePlus, Eye, ArrowRight, Layers
 } from 'lucide-react';
 import LinkifiedText from './LinkifiedText';
 import UserManagementModal from './UserManagementModal';
@@ -46,6 +46,11 @@ export default function Dashboard() {
   const [feedbackInput, setFeedbackInput] = useState('');
   const [feedbackSaving, setFeedbackSaving] = useState(false);
 
+  // Dedicated Project Detail & Tasks Modal state
+  const [activeProjectModal, setActiveProjectModal] = useState(null);
+  const [projectTaskFilter, setProjectTaskFilter] = useState('all');
+  const [projectTaskSearch, setProjectTaskSearch] = useState('');
+
   // Form states
   const [projectForm, setProjectForm] = useState({ title: '', description: '', link: '' });
   const [taskForm, setTaskForm] = useState({
@@ -84,6 +89,38 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Open project detail modal with associated tasks
+  const handleOpenProjectDetails = (project) => {
+    setActiveProjectModal(project);
+    setProjectTaskFilter('all');
+    setProjectTaskSearch('');
+  };
+
+  // Directly assign task for a specific project
+  const handleOpenAssignTaskForProject = (project, e) => {
+    if (e) e.stopPropagation();
+    setTaskForm({
+      projectId: String(project.id),
+      title: '',
+      description: '',
+      assignedToId: '',
+      dueDate: '',
+    });
+    setFormError('');
+    setFormSuccess('');
+    setIsTaskModalOpen(true);
+  };
+
+  // Sync activeProjectModal when projects or tasks list updates
+  useEffect(() => {
+    if (activeProjectModal) {
+      const updated = projects.find((p) => p.id === activeProjectModal.id);
+      if (updated) {
+        setActiveProjectModal(updated);
+      }
+    }
+  }, [projects, tasks]);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -500,6 +537,35 @@ export default function Dashboard() {
     return list;
   }, [tasks, datePreset, startDate, endDate, dateField, statusFilter, projectFilter, assigneeFilter, searchQuery, sortBy]);
 
+  // Tasks specifically belonging to the currently opened project modal
+  const activeProjectTasks = useMemo(() => {
+    if (!activeProjectModal) return [];
+    return tasks.filter((t) => t.project && Number(t.project.id) === Number(activeProjectModal.id));
+  }, [tasks, activeProjectModal]);
+
+  const filteredProjectTasks = useMemo(() => {
+    if (!activeProjectModal) return [];
+    let list = [...activeProjectTasks];
+    if (projectTaskFilter !== 'all') {
+      if (projectTaskFilter === 'overdue') {
+        const now = new Date();
+        list = list.filter((t) => t.status !== 'completed' && new Date(t.dueDate) < now);
+      } else {
+        list = list.filter((t) => t.status === projectTaskFilter);
+      }
+    }
+    if (projectTaskSearch.trim()) {
+      const q = projectTaskSearch.toLowerCase().trim();
+      list = list.filter(
+        (t) =>
+          (t.title && t.title.toLowerCase().includes(q)) ||
+          (t.description && t.description.toLowerCase().includes(q)) ||
+          (t.assignedTo && t.assignedTo.name && t.assignedTo.name.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [activeProjectTasks, projectTaskFilter, projectTaskSearch, activeProjectModal]);
+
   if (loading && !stats) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4">
@@ -682,14 +748,21 @@ export default function Dashboard() {
                 const canDeleteProject = (user.role === 'admin' && project.createdBy.role === 'admin') || (user.role === 'manager' && project.createdBy.id === user.id);
                 const canEditProject = canDeleteProject;
                 return (
-                  <div key={project.id} className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-5 hover:border-slate-700/80 transition duration-200 relative group">
+                  <div 
+                    key={project.id} 
+                    onClick={() => handleOpenProjectDetails(project)}
+                    className="bg-slate-950/40 border border-slate-800/80 hover:border-indigo-500/60 hover:bg-slate-900/50 rounded-xl p-5 transition duration-200 relative group flex flex-col justify-between cursor-pointer shadow-sm hover:shadow-lg hover:shadow-indigo-500/5"
+                  >
                     
                     {/* Delete project button */}
                     {canDeleteProject && (
                       <button
-                        onClick={() => handleDeleteProject(project.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(project.id);
+                        }}
                         title="Delete Project"
-                        className="absolute top-4 right-4 text-slate-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 focus:opacity-100 transition duration-150 p-1.5 hover:bg-rose-500/10 rounded-lg"
+                        className="absolute top-4 right-4 text-slate-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 focus:opacity-100 transition duration-150 p-1.5 hover:bg-rose-500/10 rounded-lg cursor-pointer z-10"
                       >
                         <Trash2 className="h-4.5 w-4.5" />
                       </button>
@@ -697,59 +770,92 @@ export default function Dashboard() {
 
                     {canEditProject && (
                       <button
-                        onClick={() => handleOpenProjectEditor(project)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenProjectEditor(project);
+                        }}
                         title="Edit Project"
-                        className={`absolute top-4 right-12 text-slate-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 focus:opacity-100 transition duration-150 p-1.5 hover:bg-indigo-500/10 rounded-lg`}
+                        className={`absolute top-4 right-12 text-slate-500 hover:text-indigo-400 opacity-0 group-hover:opacity-100 focus:opacity-100 transition duration-150 p-1.5 hover:bg-indigo-500/10 rounded-lg cursor-pointer z-10`}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                     )}
 
-                    <div className="flex items-start justify-between gap-3 mb-2.5 pt-6">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <h4 className="font-semibold text-white text-base font-outfit">{project.title}</h4>
-                          {project.link && (
-                            <a
-                              href={project.link.startsWith('http://') || project.link.startsWith('https://') ? project.link : `https://${project.link}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 transition duration-150 shadow-sm"
-                              title={`Visit link: ${project.link}`}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              <span>Project Link</span>
-                            </a>
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-2.5 pt-6">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <h4 className="font-semibold text-white text-base font-outfit group-hover:text-indigo-300 transition">
+                              {project.title}
+                            </h4>
+                            {project.link && (
+                              <a
+                                href={project.link.startsWith('http://') || project.link.startsWith('https://') ? project.link : `https://${project.link}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 transition duration-150 shadow-sm"
+                                title={`Visit link: ${project.link}`}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                <span>Project Link</span>
+                              </a>
+                            )}
+                          </div>
+                          {project.description && (
+                            <div className="text-slate-400 text-xs mt-1 leading-relaxed line-clamp-2">
+                              <LinkifiedText text={project.description} />
+                            </div>
                           )}
                         </div>
-                        {project.description && (
-                          <div className="text-slate-400 text-xs mt-1 leading-relaxed">
-                            <LinkifiedText text={project.description} />
-                          </div>
+                        <span className="text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
+                          {project.metrics.progress}%
+                        </span>
+                      </div>
+
+                      {/* Progress bar container */}
+                      <div className="w-full bg-slate-850 h-2 rounded-full overflow-hidden mb-3">
+                        <div 
+                          className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${project.metrics.progress}%` }}
+                        ></div>
+                      </div>
+
+                      {/* Sub metrics info */}
+                      <div className="flex items-center gap-3 text-slate-500 text-xs">
+                        <span>Tasks: <strong className="text-slate-300">{project.metrics.totalTasks}</strong></span>
+                        <span>Done: <strong className="text-emerald-400">{project.metrics.completedTasks}</strong></span>
+                        {project.metrics.overdueTasks > 0 && (
+                          <span className="text-rose-400 font-medium">Overdue: {project.metrics.overdueTasks}</span>
                         )}
                       </div>
-                      <span className="text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
-                        {project.metrics.progress}%
-                      </span>
                     </div>
 
-                    {/* Progress bar container */}
-                    <div className="w-full bg-slate-850 h-2 rounded-full overflow-hidden mb-3">
-                      <div 
-                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500" 
-                        style={{ width: `${project.metrics.progress}%` }}
-                      ></div>
-                    </div>
+                    {/* Interactive Action Bar at Bottom of Project Card */}
+                    <div className="pt-3 border-t border-slate-850/80 mt-3 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenProjectDetails(project);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>Open & Tasks ({project.metrics.totalTasks})</span>
+                      </button>
 
-                    {/* Sub metrics info */}
-                    <div className="flex items-center gap-4 text-slate-500 text-xs">
-                      <span>Tasks: <strong className="text-slate-300">{project.metrics.totalTasks}</strong></span>
-                      <span>Completed: <strong className="text-emerald-400">{project.metrics.completedTasks}</strong></span>
-                      {project.metrics.overdueTasks > 0 && (
-                        <span className="text-rose-400 font-medium">Overdue: {project.metrics.overdueTasks}</span>
+                      {user.role !== 'executive' && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenAssignTaskForProject(project, e)}
+                          title="Directly assign task to this project"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 hover:border-indigo-500 px-2.5 py-1 rounded-lg transition shadow-xs cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span>Assign</span>
+                        </button>
                       )}
-                      <span className="ml-auto text-slate-500">Created by: {project.createdBy.name}</span>
                     </div>
                   </div>
                 );
@@ -1281,7 +1387,7 @@ export default function Dashboard() {
               <h3 className="text-xl font-bold text-white font-outfit">Assign Team Task</h3>
               <button 
                 onClick={() => setIsTaskModalOpen(false)}
-                className="text-slate-400 hover:text-white transition"
+                className="text-slate-400 hover:text-white transition cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1290,6 +1396,13 @@ export default function Dashboard() {
             {formError && <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg p-3">{formError}</div>}
             {formSuccess && <div className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">{formSuccess}</div>}
 
+            {taskForm.projectId && projects.find(p => String(p.id) === String(taskForm.projectId)) && (
+              <div className="bg-indigo-500/10 border border-indigo-500/25 rounded-xl p-2.5 flex items-center gap-2 text-xs text-indigo-300">
+                <Folder className="h-4 w-4 text-indigo-400 shrink-0" />
+                <span>Assigning for Project: <strong className="text-white font-semibold">{projects.find(p => String(p.id) === String(taskForm.projectId))?.title}</strong></span>
+              </div>
+            )}
+
             <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-350 mb-1.5">Select Project</label>
@@ -1297,7 +1410,7 @@ export default function Dashboard() {
                   required
                   value={taskForm.projectId}
                   onChange={(e) => setTaskForm({ ...taskForm, projectId: e.target.value })}
-                  className="w-full bg-slate-950/60 border border-slate-850 rounded-xl py-2 px-3 text-slate-300 focus:outline-none focus:border-indigo-500 text-sm transition"
+                  className="w-full bg-slate-950/60 border border-slate-850 rounded-xl py-2 px-3 text-slate-300 focus:outline-none focus:border-indigo-500 text-sm transition cursor-pointer"
                 >
                   <option value="">-- Choose Project --</option>
                   {projects.map(p => (
@@ -1420,6 +1533,367 @@ export default function Dashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PROJECT DETAILS & TASKS MODAL ================= */}
+      {activeProjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950/60 shrink-0">
+              <div className="flex items-start gap-3.5">
+                <div className="h-11 w-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
+                  <Folder className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white font-outfit tracking-tight">
+                      {activeProjectModal.title}
+                    </h3>
+                    {activeProjectModal.link && (
+                      <a
+                        href={activeProjectModal.link.startsWith('http://') || activeProjectModal.link.startsWith('https://') ? activeProjectModal.link : `https://${activeProjectModal.link}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 transition shadow-sm"
+                        title="Open Project Link"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span>Visit Link</span>
+                      </a>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                    <span>Created by <strong className="text-slate-200">{activeProjectModal.createdBy?.name || 'Admin'}</strong></span>
+                    <span>•</span>
+                    <span className="text-slate-400">Total Tasks: <strong className="text-indigo-300">{activeProjectTasks.length}</strong></span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Controls in Header */}
+              <div className="flex items-center gap-2.5 self-end sm:self-center">
+                {user.role !== 'executive' && (
+                  <button
+                    onClick={() => handleOpenAssignTaskForProject(activeProjectModal)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white px-3.5 py-2 text-xs sm:text-sm font-semibold transition shadow-lg shadow-indigo-600/20 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Assign Task</span>
+                  </button>
+                )}
+
+                {((user.role === 'admin' && activeProjectModal.createdBy?.role === 'admin') || (user.role === 'manager' && activeProjectModal.createdBy?.id === user.id)) && (
+                  <button
+                    onClick={() => {
+                      handleOpenProjectEditor(activeProjectModal);
+                      setActiveProjectModal(null);
+                    }}
+                    title="Edit Project Details"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-2 text-xs font-medium transition cursor-pointer"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-indigo-400" />
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setActiveProjectModal(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                  title="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+              
+              {/* Project Overview Card */}
+              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 sm:p-7 space-y-6 shadow-sm">
+                {activeProjectModal.description && (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <AlignLeft className="h-3.5 w-3.5 text-indigo-400" />
+                      Project Description & Objectives
+                    </span>
+                    <div className="text-sm sm:text-base text-slate-200 leading-relaxed bg-slate-900/80 p-4 sm:p-5 rounded-xl border border-slate-800/90 border-l-4 border-l-indigo-500 shadow-inner">
+                      <LinkifiedText text={activeProjectModal.description} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Project Progress & Statistics Row */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-2">
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 className="h-4 w-4 text-indigo-400" />
+                      Project Completion Health
+                    </span>
+                    <span className="text-indigo-400 font-bold font-outfit text-sm">
+                      {activeProjectModal.metrics.progress}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-850 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-indigo-500 via-indigo-400 to-emerald-500 h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${activeProjectModal.metrics.progress}%` }}
+                    ></div>
+                  </div>
+
+                  {/* Metric counters */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-850">
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Tasks</span>
+                      <span className="text-lg font-bold text-white font-outfit">{activeProjectTasks.length}</span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-orange-400 block">In Progress</span>
+                      <span className="text-lg font-bold text-orange-400 font-outfit">
+                        {activeProjectTasks.filter(t => t.status === 'in_progress').length}
+                      </span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-emerald-400 block">Completed</span>
+                      <span className="text-lg font-bold text-emerald-400 font-outfit">
+                        {activeProjectTasks.filter(t => t.status === 'completed').length}
+                      </span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-rose-400 block">Overdue</span>
+                      <span className="text-lg font-bold text-rose-400 font-outfit">
+                        {activeProjectTasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < new Date()).length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Tasks Header & Filter Controls */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
+                  <div>
+                    <h4 className="text-base font-bold text-white flex items-center gap-2 font-outfit">
+                      <ListTodo className="h-4.5 w-4.5 text-indigo-400" />
+                      Tasks Assigned to {activeProjectModal.title}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Directly manage tasks, assign team members, and update deadlines.
+                    </p>
+                  </div>
+
+                  {user.role !== 'executive' && (
+                    <button
+                      onClick={() => handleOpenAssignTaskForProject(activeProjectModal)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-300 hover:text-white bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 hover:border-indigo-500 px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer self-start sm:self-auto"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>+ Assign Task to this Project</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Search & Status Filter bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-950/40 p-3 rounded-xl border border-slate-850">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Search tasks in this project..."
+                      value={projectTaskSearch}
+                      onChange={(e) => setProjectTaskSearch(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition"
+                    />
+                  </div>
+
+                  {/* Status Pills */}
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                    {[
+                      { key: 'all', label: 'All', count: activeProjectTasks.length },
+                      { key: 'not_started', label: 'Not Started', count: activeProjectTasks.filter(t => t.status === 'not_started').length },
+                      { key: 'in_progress', label: 'In Progress', count: activeProjectTasks.filter(t => t.status === 'in_progress').length },
+                      { key: 'completed', label: 'Completed', count: activeProjectTasks.filter(t => t.status === 'completed').length },
+                      { key: 'overdue', label: 'Overdue', count: activeProjectTasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < new Date()).length },
+                    ].map(tab => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setProjectTaskFilter(tab.key)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer whitespace-nowrap ${
+                          projectTaskFilter === tab.key
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-slate-200 border border-slate-800'
+                        }`}
+                      >
+                        {tab.label} ({tab.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tasks List for this project */}
+                {filteredProjectTasks.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-950/20 border border-dashed border-slate-800 rounded-xl space-y-3">
+                    <ListTodo className="mx-auto h-9 w-9 text-slate-600" />
+                    <p className="text-slate-400 text-sm font-medium">
+                      {activeProjectTasks.length === 0
+                        ? 'No tasks have been assigned to this project yet.'
+                        : 'No tasks match the selected filter or search keyword.'}
+                    </p>
+                    {user.role !== 'executive' && (
+                      <button
+                        onClick={() => handleOpenAssignTaskForProject(activeProjectModal)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 rounded-xl transition cursor-pointer shadow-sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Assign First Task to {activeProjectModal.title}</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredProjectTasks.map((task) => {
+                      const isOverdue = task.status !== 'completed' && new Date(task.dueDate) < new Date();
+                      const canDeleteTask = (user.role === 'admin' && activeProjectModal.createdBy?.role === 'admin') || (user.role === 'manager' && (activeProjectModal.createdById === user.id || task.assignedById === user.id));
+                      const canReassign = user.role === 'admin' || user.role === 'manager';
+
+                      let statusColor = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                      let statusText = 'Not Started';
+                      if (task.status === 'in_progress') {
+                        statusColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                        statusText = 'In Progress';
+                      } else if (task.status === 'completed') {
+                        statusColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                        statusText = 'Completed';
+                      }
+
+                      return (
+                        <div 
+                          key={task.id}
+                          className="bg-slate-950/60 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 transition duration-150 space-y-3"
+                        >
+                          {/* Task Title & Status Header */}
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h5 className="text-sm font-semibold text-white font-outfit">{task.title}</h5>
+                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                                  {statusText}
+                                </span>
+                                {isOverdue && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                                    <AlertTriangle className="h-3 w-3" /> Overdue
+                                  </span>
+                                )}
+                              </div>
+                              {task.description && (
+                                <div className="text-xs text-slate-400 leading-relaxed pt-0.5">
+                                  <LinkifiedText text={task.description} />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Top right actions: Feedback & Delete */}
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
+                              {task.status === 'completed' && (
+                                <button
+                                  onClick={() => handleOpenFeedbackModal(task)}
+                                  className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 transition cursor-pointer"
+                                >
+                                  <MessageSquare className="h-3 w-3" />
+                                  <span>{task.feedback ? 'Edit Feedback' : 'Give Feedback'}</span>
+                                </button>
+                              )}
+                              {canDeleteTask && (
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  title="Delete Task"
+                                  className="text-slate-500 hover:text-rose-500 transition p-1 hover:bg-rose-500/10 rounded-lg cursor-pointer"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Task Metadata & Controls Bar */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-850/80 text-xs text-slate-400">
+                            
+                            {/* Assignee chip + quick dropdown */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-500 font-medium">Assigned to:</span>
+                              <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg">
+                                <UserAvatar user={task.assignedTo} size="xs" />
+                                {canReassign ? (
+                                  <select
+                                    value={task.assignedTo?.id || ''}
+                                    onChange={(e) => handleAssigneeChange(task.id, e.target.value)}
+                                    className="bg-transparent text-xs text-slate-200 font-medium focus:outline-none cursor-pointer"
+                                  >
+                                    {usersList.map((u) => (
+                                      <option key={u.id} value={u.id} className="bg-slate-900 text-slate-200">
+                                        {u.name} ({u.role})
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="text-slate-200 font-medium">{task.assignedTo?.name}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Due date picker */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                                <Calendar className="h-3.5 w-3.5 text-slate-500" /> Deadline:
+                              </span>
+                              <input
+                                type="date"
+                                value={task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : ''}
+                                onChange={(e) => handleDueDateChange(task.id, e.target.value)}
+                                className="bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg text-xs text-slate-200 hover:border-indigo-500 focus:outline-none focus:border-indigo-500 transition cursor-pointer"
+                              />
+                            </div>
+
+                          </div>
+
+                          {/* Feedback preview if present */}
+                          {task.feedback && (
+                            <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-lg p-2.5 text-xs text-indigo-200 flex items-start gap-2">
+                              <MessageSquare className="h-3.5 w-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <span className="font-semibold text-indigo-300 block text-[11px]">Manager / Admin Feedback:</span>
+                                <LinkifiedText text={task.feedback} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs text-slate-400 shrink-0">
+              <span className="flex items-center gap-1.5">
+                <Folder className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Project ID: #{activeProjectModal.id}</span>
+              </span>
+              <button
+                onClick={() => setActiveProjectModal(null)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-1.5 rounded-xl font-medium transition cursor-pointer"
+              >
+                Close Project View
+              </button>
+            </div>
+
           </div>
         </div>
       )}
